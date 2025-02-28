@@ -2,12 +2,14 @@ package example.com.idauptime;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-public class IdauptimeApplication {
+@EnableScheduling
+public class IdaUptimeApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(IdauptimeApplication.class, args);
+		SpringApplication.run(IdaUptimeApplication.class, args);
 	}
 
 }
