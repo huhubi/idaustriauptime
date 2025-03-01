@@ -1,82 +1,103 @@
 package example.com.idauptime;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
+
+import org.openqa.selenium.*;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+import io.github.bonigarcia.wdm.WebDriverManager;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.time.LocalDateTime;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Service
 public class UptimeService {
 
-    private static final String STATUS_PAGE_URL = "http://127.0.0.1:5000/";
+    private static final String STATUS_PAGE_URL = "http://127.0.0.1:5000"; // Flask test server
 
-    // Concurrent HashMap ensures thread safety for scheduled tasks
-    private final Map<String, ServiceStatus> serviceStatusMap = new ConcurrentHashMap<>();
+    private final Map<String, ServiceState> lastKnownStates = new ConcurrentHashMap<>();
+    private final List<ServiceStatus> statusHistory = new CopyOnWriteArrayList<>();
 
+    // List of services to track
+    private static final List<String> TRACKED_SERVICES = List.of(
+            "Anmeldung im Web mit ID Austria",
+            "Aktivierung der App \"Digitales Amt\"",
+            "Anmeldung mit der App \"Digitales Amt\"",
+            "Deaktivierung der App \"Digitales Amt\"",
+            "eIDAS Knoten"
+    );
 
-    @Scheduled(cron = "*/5 * * * * *")
-    // TODO make the schedule time configurable in the properties
+    @Scheduled(fixedRate = 5000) // Runs every 5 seconds
     public void fetchServiceStatus() {
+        System.out.println("Fetching service status...");
+
+        // Setup ChromeDriver
+        WebDriverManager.chromedriver().setup();
+        ChromeOptions options = new ChromeOptions();
+        options.addArguments("--headless=new", "--disable-gpu", "--no-sandbox", "--disable-dev-shm-usage");
+
+        WebDriver driver = new ChromeDriver(options);
+
         try {
-            System.out.println("Fetching service status...");
-            Document doc = Jsoup.connect(STATUS_PAGE_URL).get();
+            driver.get(STATUS_PAGE_URL);
+            Thread.sleep(3000); // Wait for JavaScript execution
 
-            Element servicesContainer = doc.selectFirst("div.col-md-4.px-4");
-            if (servicesContainer == null) {
-                throw new IOException("Service container not found.");
-            }
+            List<WebElement> serviceRows = driver.findElements(By.cssSelector("div.col-md-4.px-4 div.row.mr-2.mb-2"));
 
-            Elements serviceRows = servicesContainer.select("div.row.mr-2.mb-2");
+            for (WebElement row : serviceRows) {
+                // Extract service name
+                String serviceName = row.findElement(By.tagName("td")).getText();
 
-            for (Element row : serviceRows) {
-                String serviceName = row.select("td").first().text();
-                Element statusIcon = row.select("td span").first();
-                String newStatus = parseStatus(statusIcon);
-
-                ServiceStatus lastStatus = serviceStatusMap.getOrDefault(serviceName, new ServiceStatus(serviceName));
-
-                // Handle status change (degradation or restoration)
-                if (!lastStatus.getCurrentStatus().equals(newStatus)) {
-                    if (lastStatus.getCurrentStatus().equals("Success") && !newStatus.equals("Success")) {
-                        lastStatus.setTimestampDegradation(LocalDateTime.now());
-                    } else if (!lastStatus.getCurrentStatus().equals("Success") && newStatus.equals("Success")) {
-                        lastStatus.setTimestampRestoration(LocalDateTime.now());
-                    }
+                // Ignore services that are not in the tracked list
+                if (!TRACKED_SERVICES.contains(serviceName)) {
+                    continue;
                 }
 
-                // Update status in the map
-                lastStatus.setCurrentStatus(newStatus);
-                serviceStatusMap.put(serviceName, lastStatus);
+                // Extract the dynamically updated status icon
+                WebElement statusIcon = row.findElement(By.cssSelector("td span.fas"));
+                String extractedClass = statusIcon.getAttribute("class");
+
+                // Log extracted service and status
+                System.out.println("Service Name: " + serviceName);
+                System.out.println("Extracted Icon Class: " + extractedClass);
+
+                ServiceState newState = parseState(statusIcon);
+                ServiceState previousState = lastKnownStates.get(serviceName);
+
+                if (previousState == null || previousState != newState) {
+                    statusHistory.add(new ServiceStatus(serviceName, newState));
+                    System.out.println("State change detected: " + serviceName + " -> " + newState);
+                }
+
+                lastKnownStates.put(serviceName, newState);
             }
 
             System.out.println("Service status updated.");
-        } catch (IOException e) {
-            System.err.println("Error fetching status page: " + e.getMessage());
+
+        } catch (InterruptedException e) {
+            System.err.println("Error waiting for JavaScript execution: " + e.getMessage());
+        } finally {
+            driver.quit();
         }
     }
 
-    public Map<String, ServiceStatus> getCurrentServiceStatus() {
-        return serviceStatusMap;
+    public List<ServiceStatus> getAllStatusChanges() {
+        return statusHistory;
     }
 
-    private String parseStatus(Element statusIcon) {
+    private ServiceState parseState(WebElement statusIcon) {
         if (statusIcon != null) {
-            String statusClass = statusIcon.className();
+            String statusClass = statusIcon.getAttribute("class");
             if (statusClass.contains("fa-check")) {
-                return "Success";
+                return ServiceState.SUCCESS;
             } else if (statusClass.contains("fa-exclamation")) {
-                return "Warning";
+                return ServiceState.WARNING;
             } else if (statusClass.contains("fa-question")) {
-                return "Undefined";
+                return ServiceState.UNDEFINED;
             }
         }
-        return "Unknown";
+        return ServiceState.UNDEFINED;
     }
 }

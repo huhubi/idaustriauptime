@@ -1,36 +1,27 @@
 package example.com.idauptime;
-import lombok.Setter;
 
 import java.time.LocalDateTime;
 
 public class ServiceStatus {
     private String name;
-    @Setter
-    private String currentStatus;
-    @Setter
-    private LocalDateTime timestampDegradation;
-    @Setter
-    private LocalDateTime timestampRestoration;
+    private ServiceState currentState;
+    private LocalDateTime timestamp;
 
-    public ServiceStatus(String name) {
+    public ServiceStatus(String name, ServiceState currentState) {
         this.name = name;
-        this.currentStatus = "Unknown";
+        this.currentState = currentState;
+        this.timestamp = LocalDateTime.now();
     }
 
     public String getName() {
         return name;
     }
 
-    public String getCurrentStatus() {
-        return currentStatus;
+    public ServiceState getCurrentState() {
+        return currentState;
     }
 
-    public LocalDateTime getTimestampDegradation() {
-        return timestampDegradation;
+    public LocalDateTime getTimestamp() {
+        return timestamp;
     }
-
-    public LocalDateTime getTimestampRestoration() {
-        return timestampRestoration;
-    }
-
 }
