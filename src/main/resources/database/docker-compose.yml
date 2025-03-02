@@ -1,0 +1,9 @@
+version: '3.8'
+services:
+  services-db:
+    build: services_db/.
+    ports:
+      - '30001:5432'
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres

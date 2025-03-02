@@ -1,6 +1,9 @@
 package example.com.idauptime;
 
-import org.openqa.selenium.*;
+
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import io.github.bonigarcia.wdm.WebDriverManager;
@@ -10,94 +13,96 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-
+import org.springframework.transaction.annotation.Transactional;
 @Service
-public class UptimeService {
 
-    private static final String STATUS_PAGE_URL = "http://127.0.0.1:5000"; // Flask test server
+    public class UptimeService {
 
-    private final Map<String, ServiceState> lastKnownStates = new ConcurrentHashMap<>();
-    private final List<ServiceStatus> statusHistory = new CopyOnWriteArrayList<>();
+        private final ServiceStatusRepository serviceStatusRepository;
+        private static final String STATUS_PAGE_URL = "http://127.0.0.1:5000";
 
-    // List of services to track
-    private static final List<String> TRACKED_SERVICES = List.of(
-            "Anmeldung im Web mit ID Austria",
-            "Aktivierung der App \"Digitales Amt\"",
-            "Anmeldung mit der App \"Digitales Amt\"",
-            "Deaktivierung der App \"Digitales Amt\"",
-            "eIDAS Knoten"
-    );
+        private final Map<String, ServiceState> lastKnownStates = new ConcurrentHashMap<>();
 
-    @Scheduled(fixedRate = 305000) // Runs every 5 minutes
-    public void fetchServiceStatus() {
-        System.out.println("Fetching service status...");
+        private static final List<String> TRACKED_SERVICES = List.of(
+                "Anmeldung im Web mit ID Austria",
+                "Aktivierung der App \"Digitales Amt\"",
+                "Anmeldung mit der App \"Digitales Amt\"",
+                "Deaktivierung der App \"Digitales Amt\"",
+                "eIDAS Knoten"
+        );
 
-        // Setup ChromeDriver
-        WebDriverManager.chromedriver().setup();
-        ChromeOptions options = new ChromeOptions();
-        options.addArguments("--headless=new", "--disable-gpu", "--no-sandbox", "--disable-dev-shm-usage");
+        public UptimeService(ServiceStatusRepository serviceStatusRepository) {
+            this.serviceStatusRepository = serviceStatusRepository;
+        }
 
-        WebDriver driver = new ChromeDriver(options);
+    @Transactional
+    public void saveServiceStatus(ServiceStatus status) {
+        serviceStatusRepository.save(status);
+    }
 
-        try {
-            driver.get(STATUS_PAGE_URL);
-            Thread.sleep(3000); // Wait for JavaScript execution
+        @Scheduled(fixedRate = 305000)
+        public void fetchServiceStatus() {
+            System.out.println("Fetching service status...");
 
-            List<WebElement> serviceRows = driver.findElements(By.cssSelector("div.col-md-4.px-4 div.row.mr-2.mb-2"));
+            WebDriverManager.chromedriver().setup();
+            ChromeOptions options = new ChromeOptions();
+            options.addArguments("--headless=new", "--disable-gpu", "--no-sandbox", "--disable-dev-shm-usage");
 
-            for (WebElement row : serviceRows) {
-                // Extract service name
-                String serviceName = row.findElement(By.tagName("td")).getText();
+            WebDriver driver = new ChromeDriver(options);
 
-                // Ignore services that are not in the tracked list
-                if (!TRACKED_SERVICES.contains(serviceName)) {
-                    continue;
+            try {
+                driver.get(STATUS_PAGE_URL);
+                Thread.sleep(3000);
+
+                List<WebElement> serviceRows = driver.findElements(By.cssSelector("div.col-md-4.px-4 div.row.mr-2.mb-2"));
+
+                for (WebElement row : serviceRows) {
+                    String serviceName = row.findElement(By.tagName("td")).getText();
+
+                    if (!TRACKED_SERVICES.contains(serviceName)) {
+                        continue;
+                    }
+
+                    WebElement statusIcon = row.findElement(By.cssSelector("td span.fas"));
+                    String extractedClass = statusIcon.getAttribute("class");
+
+                    ServiceState newState = parseState(statusIcon);
+                    ServiceState previousState = lastKnownStates.get(serviceName);
+
+                    if (previousState == null || previousState != newState) {
+                        ServiceStatus newStatus = new ServiceStatus(serviceName, newState);
+                        System.out.println("Trying to save: " + serviceName + " -> " + newState);
+                        saveServiceStatus(newStatus);
+                        System.out.println("Saved: " + serviceName + " -> " + newState);
+                    }
+
+                    lastKnownStates.put(serviceName, newState);
                 }
 
-                // Extract the dynamically updated status icon
-                WebElement statusIcon = row.findElement(By.cssSelector("td span.fas"));
-                String extractedClass = statusIcon.getAttribute("class");
+                System.out.println("Service status updated.");
 
-                // Log extracted service and status
-                System.out.println("Service Name: " + serviceName);
-                System.out.println("Extracted Icon Class: " + extractedClass);
+            } catch (InterruptedException e) {
+                System.err.println("Error waiting for JavaScript execution: " + e.getMessage());
+            } finally {
+                driver.quit();
+            }
+        }
 
-                ServiceState newState = parseState(statusIcon);
-                ServiceState previousState = lastKnownStates.get(serviceName);
+        public List<ServiceStatus> getAllStatusChanges() {
+            return serviceStatusRepository.findAll();
+        }
 
-                if (previousState == null || previousState != newState) {
-                    statusHistory.add(new ServiceStatus(serviceName, newState));
-                    System.out.println("State change detected: " + serviceName + " -> " + newState);
+        private ServiceState parseState(WebElement statusIcon) {
+            if (statusIcon != null) {
+                String statusClass = statusIcon.getAttribute("class");
+                if (statusClass.contains("fa-check")) {
+                    return ServiceState.SUCCESS;
+                } else if (statusClass.contains("fa-exclamation")) {
+                    return ServiceState.WARNING;
+                } else if (statusClass.contains("fa-question")) {
+                    return ServiceState.UNDEFINED;
                 }
-
-                lastKnownStates.put(serviceName, newState);
             }
-
-            System.out.println("Service status updated.");
-
-        } catch (InterruptedException e) {
-            System.err.println("Error waiting for JavaScript execution: " + e.getMessage());
-        } finally {
-            driver.quit();
+            return ServiceState.UNDEFINED;
         }
     }
-
-    public List<ServiceStatus> getAllStatusChanges() {
-        return statusHistory;
-    }
-
-    private ServiceState parseState(WebElement statusIcon) {
-        if (statusIcon != null) {
-            String statusClass = statusIcon.getAttribute("class");
-            if (statusClass.contains("fa-check")) {
-                return ServiceState.SUCCESS;
-            } else if (statusClass.contains("fa-exclamation")) {
-                return ServiceState.WARNING;
-            } else if (statusClass.contains("fa-question")) {
-                return ServiceState.UNDEFINED;
-            }
-        }
-        return ServiceState.UNDEFINED;
-    }
-}
