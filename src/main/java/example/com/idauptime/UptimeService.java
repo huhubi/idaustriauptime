@@ -29,7 +29,7 @@ public class UptimeService {
             "eIDAS Knoten"
     );
 
-    @Scheduled(fixedRate = 5000) // Runs every 5 seconds
+    @Scheduled(fixedRate = 305000) // Runs every 5 minutes
     public void fetchServiceStatus() {
         System.out.println("Fetching service status...");
 
