@@ -12,14 +12,18 @@
         <tr>
             <th>Name</th>
             <th>Current State</th>
-            <th>Timestamp</th>
+            <th>Last Status Timestamp</th>
+            <th>Last Incident Timestamp</th> <!-- Timestamp of last issue -->
+            <th>Last Incident Type</th> <!-- New column for incident type -->
         </tr>
         </thead>
         <tbody>
         <tr th:each="status : ${statuses}">
             <td th:text="${status.name}"></td>
-            <td th:text="${status.currentState}"></td> <!-- Now correctly displays the enum as a string -->
+            <td th:text="${status.currentState}"></td>
             <td th:text="${#temporals.format(status.timestamp, 'yyyy-MM-dd HH:mm:ss')}"></td>
+            <td th:text="${status.lastIncidentTimestamp != null ? #temporals.format(status.lastIncidentTimestamp, 'yyyy-MM-dd HH:mm:ss') : 'No Incidents'}"></td>
+            <td th:text="${status.lastIncidentType}"></td> <!-- Displays WARNING or UNDEFINED -->
         </tr>
         </tbody>
     </table>
