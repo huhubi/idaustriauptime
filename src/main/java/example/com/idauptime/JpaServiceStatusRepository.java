@@ -3,36 +3,60 @@ package example.com.idauptime;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.List;
-
+import java.util.logging.Logger;
 
 @Repository
 public class JpaServiceStatusRepository {
 
+    private static final Logger logger = Logger.getLogger(JpaServiceStatusRepository.class.getName());
+
     @PersistenceContext
     private EntityManager entityManager;
 
-    public List<ServiceStatus> findLatestStatusForService(String tableName) {
-        return entityManager.createNativeQuery(
-                        "SELECT id, name, current_state, timestamp FROM " + tableName + " ORDER BY timestamp DESC LIMIT 1", ServiceStatus.class)
-                .getResultList();
-    }
+    public List<ServiceStatusDTO> findLatestStatusForAllServices() {
+        logger.info("Fetching latest status for all services");
 
-    public List<ServiceStatus> findHistoryForService(String serviceName) {
-        String tableName = getTableName(serviceName);
-        return entityManager.createNativeQuery(
-                        "SELECT id, name, current_state, timestamp FROM " + tableName + " ORDER BY timestamp DESC", ServiceStatus.class)
-                .getResultList();
-    }
+        String sqlQuery = """
+                SELECT name, current_state, timestamp FROM (
+                   SELECT name, current_state, timestamp FROM activate_app_service_status ORDER BY timestamp DESC LIMIT 1
+                ) AS a 
+                UNION ALL 
+                SELECT name, current_state, timestamp FROM (
+                   SELECT name, current_state, timestamp FROM deactivate_app_service_status ORDER BY timestamp DESC LIMIT 1
+                ) AS b 
+                UNION ALL 
+                SELECT name, current_state, timestamp FROM (
+                   SELECT name, current_state, timestamp FROM eidas_service_status ORDER BY timestamp DESC LIMIT 1
+                ) AS c 
+                UNION ALL 
+                SELECT name, current_state, timestamp FROM (
+                   SELECT name, current_state, timestamp FROM login_app_service_status ORDER BY timestamp DESC LIMIT 1
+                ) AS d 
+                UNION ALL 
+                SELECT name, current_state, timestamp FROM (
+                   SELECT name, current_state, timestamp FROM login_web_service_status ORDER BY timestamp DESC LIMIT 1
+                ) AS e
+                """;
 
-    private String getTableName(String serviceName) {
-        return switch (serviceName) {
-            case "Anmeldung im Web mit ID Austria" -> "login_web_service_status";
-            case "Aktivierung der App \"Digitales Amt\"" -> "activate_app_service_status";
-            case "Anmeldung mit der App \"Digitales Amt\"" -> "login_app_service_status";
-            case "Deaktivierung der App \"Digitales Amt\"" -> "deactivate_app_service_status";
-            case "eIDAS Knoten" -> "eidas_service_status";
-            default -> throw new IllegalArgumentException("Unknown service: " + serviceName);
-        };
+        logger.info("Executing SQL Query:\n" + sqlQuery);
+
+        List<Object[]> results = entityManager.createNativeQuery(sqlQuery).getResultList();
+
+        if (results.isEmpty()) {
+            logger.warning("No status found for any table");
+        } else {
+            logger.info("Successfully retrieved " + results.size() + " status records.");
+        }
+
+        return results.stream()
+                .map(row -> new ServiceStatusDTO(
+                        (String) row[0],   // name
+                        (String) row[1],   // current_state (enum as string)
+                        row[2] != null ? ((Timestamp) row[2]).toLocalDateTime() : null // Convert Timestamp -> LocalDateTime
+                ))
+                .toList();
     }
 }
