@@ -1,9 +1,11 @@
 package example.com.idauptime;
 import jakarta.persistence.*;
+import lombok.Getter;
+
 import java.time.LocalDateTime;
 
+@Getter
 @Entity
-@Table(name = "service_status")
 public class ServiceStatus {
 
     @Id
@@ -25,19 +27,5 @@ public class ServiceStatus {
         this.timestamp = LocalDateTime.now();
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public ServiceState getCurrentState() {
-        return currentState;
-    }
-
-    public LocalDateTime getTimestamp() {
-        return timestamp;
-    }
 }
+

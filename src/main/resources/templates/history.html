@@ -4,7 +4,8 @@
     <title>Status History</title>
 </head>
 <body>
-<h1>Status History</h1>
+<h1>Status History for <span th:text="${service}"></span></h1>
+
 <table border="1">
     <tr>
         <th>Service</th>
@@ -17,6 +18,7 @@
         <td th:text="${entry.timestamp}"></td>
     </tr>
 </table>
+
 <a href="/">Back</a>
 </body>
 </html>

@@ -20,23 +20,24 @@
 </head>
 <body>
 <h1>ID Austria Uptime Monitor</h1>
-<div th:each="entry : ${statuses}">
+
+<div th:each="serviceTable : ${serviceStatuses}">
+    <h2 th:text="${serviceTable.key}"></h2>
     <table>
         <tr>
-            <th colspan="2" th:text="${entry.key}"></th>
+            <th>Service</th>
+            <th>Aktueller Status</th>
+            <th>Letzte Statusänderung</th>
+            <th>Details</th>
         </tr>
-        <tr>
-            <td>Aktueller Status:</td>
-            <td th:text="${entry.value.currentState}"></td>
-        </tr>
-        <tr>
-            <td>Letzte Statusänderung am:</td>
-            <td th:text="${entry.value.timestamp}"></td>
-        </tr>
-        <tr>
-            <td colspan="2"><a th:href="@{'/history/' + ${entry.key}}">Übersicht letzte Statusänderungen</a></td>
+        <tr th:each="entry : ${serviceTable.value}">
+            <td th:text="${entry.name}"></td>
+            <td th:text="${entry.currentState}"></td>
+            <td th:text="${entry.timestamp}"></td>
+            <td><a th:href="@{'/history/' + ${entry.name}}">Übersicht</a></td>
         </tr>
     </table>
 </div>
+
 </body>
 </html>
