@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Status History</title>
+</head>
+<body>
+<h1>Status History</h1>
+<table border="1">
+    <tr>
+        <th>Service</th>
+        <th>Status</th>
+        <th>Timestamp</th>
+    </tr>
+    <tr th:each="entry : ${history}">
+        <td th:text="${entry.name}"></td>
+        <td th:text="${entry.currentState}"></td>
+        <td th:text="${entry.timestamp}"></td>
+    </tr>
+</table>
+<a href="/">Back</a>
+</body>
+</html>
