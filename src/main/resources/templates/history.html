@@ -20,21 +20,6 @@
 </head>
 <body>
 <h1>Status History for <span th:text="${service}"></span></h1>
-
-<!-- Overall Uptime Table -->
-<h2>Overall Uptime</h2>
-<table>
-    <tr>
-        <th>Last 7 Days</th>
-        <th>Last 30 Days</th>
-        <th>Overall Uptime</th>
-    </tr>
-    <tr>
-        <td th:text="${#numbers.formatDecimal(uptimeStats['last7Days'], 1, 2) + '%'}"></td>
-        <td th:text="${#numbers.formatDecimal(uptimeStats['last30Days'], 1, 2) + '%'}"></td>
-        <td th:text="${#numbers.formatDecimal(uptimeStats['overall'], 1, 2) + '%'}"></td>
-    </tr>
-</table>
 <a href="/">Back</a>
 <!-- History Table -->
 <h2>Service Status History</h2>

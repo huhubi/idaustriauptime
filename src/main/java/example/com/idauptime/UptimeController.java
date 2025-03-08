@@ -28,60 +28,22 @@ public class UptimeController {
                 "eIDAS Knoten", serviceStatusRepository.findLatestStatusForService("eidas_service_status")
         );
 
-        Map<String, Double> uptimePercentages = serviceStatuses.entrySet().stream()
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        entry -> calculateUptime(entry.getValue())
-                ));
+        // Debugging: Print values
+        serviceStatuses.forEach((key, value) -> {
+            System.out.println("Service: " + key);
+            value.forEach(status -> System.out.println("  - " + status.getName() + ": " + status.getCurrentState()));
+        });
 
         model.addAttribute("serviceStatuses", serviceStatuses);
-        model.addAttribute("uptimePercentages", uptimePercentages);
         return "index";
     }
 
     @GetMapping("/history/{service}")
     public String showHistory(@PathVariable String service, Model model) {
         List<ServiceStatus> history = serviceStatusRepository.findHistoryForService(service);
-        Map<String, Double> uptimeStats = calculateUptimeForPeriods(history);
-
         model.addAttribute("service", service);
         model.addAttribute("history", history);
-        model.addAttribute("uptimeStats", uptimeStats);
         return "history";
     }
 
-    private double calculateUptime(List<ServiceStatus> statuses) {
-        if (statuses.isEmpty()) return 100.0;
-
-        long totalRecords = statuses.size();
-        long downtimeRecords = statuses.stream()
-                .filter(s -> s.getCurrentState() == ServiceState.WARNING || s.getCurrentState() == ServiceState.UNDEFINED)
-                .count();
-
-        return ((totalRecords - downtimeRecords) * 100.0) / totalRecords;
-    }
-
-    private Map<String, Double> calculateUptimeForPeriods(List<ServiceStatus> statuses) {
-        if (statuses.isEmpty()) {
-            return Map.of("last7Days", 100.0, "last30Days", 100.0, "overall", 100.0);
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime sevenDaysAgo = now.minusDays(7);
-        LocalDateTime thirtyDaysAgo = now.minusDays(30);
-
-        List<ServiceStatus> last7Days = statuses.stream()
-                .filter(s -> s.getTimestamp().isAfter(sevenDaysAgo))
-                .toList();
-
-        List<ServiceStatus> last30Days = statuses.stream()
-                .filter(s -> s.getTimestamp().isAfter(thirtyDaysAgo))
-                .toList();
-
-        double uptime7Days = calculateUptime(last7Days);
-        double uptime30Days = calculateUptime(last30Days);
-        double overallUptime = calculateUptime(statuses);
-
-        return Map.of("last7Days", uptime7Days, "last30Days", uptime30Days, "overall", overallUptime);
-    }
 }
