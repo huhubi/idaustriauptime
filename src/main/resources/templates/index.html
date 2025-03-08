@@ -1,15 +1,42 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>ID Austria Status</title>
+    <title>ID Austria Uptime</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
 </head>
 <body>
-<h1>ID Austria Status Monitor</h1>
+<h1>ID Austria Uptime Monitor</h1>
 <div th:each="entry : ${statuses}">
-    <h2 th:text="${entry.key}"></h2>
-    <p>Aktueller Status: <span th:text="${entry.value.currentState}"></span></p>
-    <p>Letzte Statusänderung am <span th:text="${entry.value.timestamp}"></span></p>
-    <a th:href="@{'/history/' + ${entry.key}}">Übersicht letzte Statusänderungen</a>
+    <table>
+        <tr>
+            <th colspan="2" th:text="${entry.key}"></th>
+        </tr>
+        <tr>
+            <td>Aktueller Status:</td>
+            <td th:text="${entry.value.currentState}"></td>
+        </tr>
+        <tr>
+            <td>Letzte Statusänderung am:</td>
+            <td th:text="${entry.value.timestamp}"></td>
+        </tr>
+        <tr>
+            <td colspan="2"><a th:href="@{'/history/' + ${entry.key}}">Übersicht letzte Statusänderungen</a></td>
+        </tr>
+    </table>
 </div>
 </body>
 </html>
