@@ -28,12 +28,14 @@
             <th>Service</th>
             <th>Aktueller Status</th>
             <th>Letzte Statusänderung</th>
+            <th>Uptime (%)</th>
             <th>Details</th>
         </tr>
         <tr th:each="entry : ${serviceTable.value}">
             <td th:text="${entry.name}"></td>
             <td th:text="${entry.currentState}"></td>
             <td th:text="${entry.timestamp}"></td>
+            <td th:text="${#numbers.formatDecimal(uptimePercentages[serviceTable.key], 1, 2) + '%'}"></td>
             <td><a th:href="@{'/history/' + ${entry.name}}">Übersicht</a></td>
         </tr>
     </table>
