@@ -5,18 +5,11 @@
 </head>
 <body>
 <h1>ID Austria Status Monitor</h1>
-<table border="1">
-    <tr>
-        <th>Service</th>
-        <th>Status</th>
-        <th>Timestamp</th>
-    </tr>
-    <tr th:each="status : ${statuses}">
-        <td th:text="${status.name}"></td>
-        <td th:text="${status.currentState}"></td>
-        <td th:text="${status.timestamp}"></td>
-    </tr>
-</table>
-<a href="/history">Übersicht der letzten Statusänderungen</a>
+<div th:each="entry : ${statuses}">
+    <h2 th:text="${entry.key}"></h2>
+    <p>Aktueller Status: <span th:text="${entry.value.currentState}"></span></p>
+    <p>Letzte Statusänderung am <span th:text="${entry.value.timestamp}"></span></p>
+    <a th:href="@{'/history/' + ${entry.key}}">Übersicht letzte Statusänderungen</a>
+</div>
 </body>
 </html>
